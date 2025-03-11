@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>つくば市観光案内チャットボット</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="header-title">
+            <div class="logo">つくば<br>観光</div>
+            <h1>つくば市観光案内チャットボット</h1>
+        </div>
+        <div class="language-toggle">
+            <button class="lang-btn active">日本語</button>
+            <button class="lang-btn">English</button>
+        </div>
+    </header>
+    
+    <main>
+        <div class="chat-container">
+            <div class="chat-window">
+                <div class="chat-messages">
+                    <div class="message bot-message">
+                        こんにちは！つくば市観光案内AIアシスタントです。つくば市での観光、交通、食事、イベントなど、どんなことでもお気軽にお尋ねください。
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-panel">
+                <div class="map-container">
+                    <!-- 地図がここに表示されます -->
+                </div>
+                <div class="quick-info">
+                    <h3>アクセス情報</h3>
+                    <div class="info-list">
+                        <!-- 情報がここに表示されます -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="quick-questions">
+            <button class="question-btn">観光スポットは？</button>
+            <button class="question-btn">交通手段は？</button>
+            <button class="question-btn">おすすめグルメは？</button>
+            <button class="question-btn">今日のイベントは？</button>
+        </div>
+        
+        <div class="input-container">
+            <input type="text" class="text-input" placeholder="質問を入力してください...">
+            <div class="input-buttons">
+                <button class="input-btn voice-btn">🎤</button>
+                <button class="input-btn">送信</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Google Maps APIの読み込み（APIキーを取得して置き換えてください） -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=あなたのGoogleMapsAPIキー&callback=initMap" async defer></script>
+    
+    <script src="script.js"></script>
+</body>
+</html>
