@@ -621,3 +621,96 @@ function generateUUID() {
         return v.toString(16);
     });
 }
+// DOMが読み込まれた後に実行
+document.addEventListener('DOMContentLoaded', function() {
+    // 既存のコード...
+    
+    // モバイル対応のためのタッチイベント明示的追加
+    document.querySelectorAll('.question-btn, .input-btn, .lang-btn').forEach(button => {
+        button.addEventListener('touchstart', function(e) {
+            e.preventDefault(); // デフォルトの動作を防止
+            this.click(); // クリックイベントを手動でトリガー
+        }, { passive: false });
+    });
+    
+    // モバイルでのデバッグ用：エラーメッセージを表示
+    window.onerror = function(message, source, lineno, colno, error) {
+        console.error('Error:', message, 'at', source, lineno, colno);
+        alert('Error: ' + message); // デバッグ用のアラート
+        return true;
+    };
+    
+    // ネットワークエラーの検出強化
+    window.addEventListener('online', function() {
+        console.log('オンラインになりました');
+    });
+    
+    window.addEventListener('offline', function() {
+        console.log('オフラインになりました');
+        displayMessage(
+            currentLanguage === 'ja' 
+                ? 'ネットワーク接続がありません。接続を確認してください。' 
+                : 'No network connection. Please check your connection.',
+            true
+        );
+    });
+    
+    // その他の既存のコード...
+});
+
+// APIにメッセージを送信（エラー処理強化）
+async function sendToAPI(message) {
+    // ローディングインジケーターを表示
+    displayLoadingIndicator();
+    
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒タイムアウト
+        
+        const response = await fetch(CONVERSATION_API, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${DIFY_API_KEY}`,
+                'X-Requested-With': 'XMLHttpRequest' // CORSヘッダー追加
+            },
+            body: JSON.stringify({
+                inputs: {},
+                query: message,
+                user: 'tourist-kiosk-' + (navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop'),
+                response_mode: 'blocking',
+                conversation_id: currentConversationId
+            }),
+            signal: controller.signal // AbortControllerのシグナルを設定
+        });
+        
+        clearTimeout(timeoutId); // タイムアウトをクリア
+        
+        // 以下既存のコード...
+        
+    } catch (error) {
+        console.error('Error details:', error);
+        removeLoadingIndicator();
+        
+        let errorMessage = languages[currentLanguage].errorMessage;
+        
+        // より詳細なエラーメッセージ
+        if (error.name === 'AbortError') {
+            errorMessage = currentLanguage === 'ja' 
+                ? 'リクエストがタイムアウトしました。ネットワーク接続を確認してください。' 
+                : 'Request timed out. Please check your network connection.';
+        } else if (error.message.includes('NetworkError')) {
+            errorMessage = currentLanguage === 'ja' 
+                ? 'ネットワークエラーが発生しました。接続を確認してください。' 
+                : 'A network error occurred. Please check your connection.';
+        }
+        
+        // エラーメッセージを表示
+        displayMessage(errorMessage, true);
+        
+        // デバッグ情報をコンソールに記録
+        console.log('User agent:', navigator.userAgent);
+        console.log('Platform:', navigator.platform);
+        console.log('Connection type:', navigator.connection ? navigator.connection.effectiveType : 'unknown');
+    }
+}
