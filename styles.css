@@ -405,3 +405,49 @@ main {
         flex: 1;
     }
 }
+/* モバイル向け追加調整 */
+@media (max-width: 480px) {
+    body {
+        height: 100vh;
+        height: -webkit-fill-available; /* モバイルSafari対応 */
+    }
+    
+    html {
+        height: -webkit-fill-available;
+    }
+    
+    .message {
+        max-width: 90%;
+        font-size: 16px;
+    }
+    
+    .input-container {
+        padding: 10px;
+    }
+    
+    .text-input {
+        padding: 12px 15px;
+        font-size: 16px; /* モバイルでのフォームズーム防止 */
+    }
+    
+    .input-btn {
+        padding: 0 15px;
+        height: 44px; /* タップしやすいサイズに */
+    }
+    
+    .question-btn {
+        padding: 12px 15px;
+        min-width: 140px;
+    }
+    
+    /* タップ領域の拡大 */
+    .lang-btn, .input-btn, .question-btn, .info-item {
+        cursor: pointer;
+        -webkit-tap-highlight-color: rgba(0,0,0,0); /* タップハイライト除去 */
+    }
+    
+    /* 100vh問題対策 */
+    .chat-container {
+        max-height: 60vh;
+    }
+}
