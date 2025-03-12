@@ -1,3 +1,22 @@
+// デバッグ機能
+const DEBUG_MODE = true; // デバッグモードのオン/オフ
+const USE_FALLBACK = false; // APIが失敗した場合のフォールバックモード
+
+// デバッグログ
+function debugLog(message) {
+    if (!DEBUG_MODE) return;
+    
+    console.log(message);
+    
+    // デバッグ情報表示エリアに追加
+    const debugElement = document.getElementById('debug-content');
+    if (debugElement) {
+        const time = new Date().toLocaleTimeString();
+        debugElement.innerHTML += `<div>[${time}] ${message}</div>`;
+        document.getElementById('debug-info').style.display = 'block';
+    }
+}
+
 // Dify API設定
 const DIFY_API_ENDPOINT = 'https://api.dify.ai/v1';
 const DIFY_API_KEY = 'app-QXDuUVWKmRpJvmVOTi6LVKNI'; // 実際のAPIキーに置き換える
@@ -21,7 +40,9 @@ const languages = {
         accessInfo: 'アクセス情報',
         welcomeMessage: 'こんにちは！つくば市観光案内AIアシスタントです。つくば市での観光、交通、食事、イベントなど、どんなことでもお気軽にお尋ねください。',
         errorMessage: 'すみません、エラーが発生しました。もう一度お試しください。',
-        loadingMessage: '回答を考えています...'
+        loadingMessage: '回答を考えています...',
+        networkErrorMessage: 'ネットワーク接続に問題があります。接続を確認してください。',
+        timeoutMessage: 'リクエストがタイムアウトしました。ネットワーク接続を確認してください。'
     },
     'en': {
         apiLanguage: 'en',
@@ -39,7 +60,9 @@ const languages = {
         accessInfo: 'Access Information',
         welcomeMessage: "Hello! I'm the Tsukuba City tourism AI assistant. Please feel free to ask me about sightseeing, transportation, food, events, or anything else in Tsukuba City.",
         errorMessage: 'Sorry, an error occurred. Please try again.',
-        loadingMessage: 'Thinking...'
+        loadingMessage: 'Thinking...',
+        networkErrorMessage: 'Network connection issues. Please check your connection.',
+        timeoutMessage: 'Request timed out. Please check your network connection.'
     }
 };
 
@@ -51,6 +74,9 @@ let markers = [];
 
 // DOMが読み込まれた後に実行
 document.addEventListener('DOMContentLoaded', function() {
+    debugLog(`デバイス情報: ${navigator.userAgent}`);
+    debugLog(`画面サイズ: ${window.innerWidth}x${window.innerHeight}`);
+    
     // 言語切り替えボタンのイベントリスナー設定
     setupLanguageToggle();
     
@@ -69,35 +95,88 @@ document.addEventListener('DOMContentLoaded', function() {
     // 自動リセット機能（デジタルサイネージ用）
     setupAutoReset();
     
+    // ネットワーク状態の監視
+    setupNetworkMonitoring();
+    
+    // モバイル対応のためのタッチイベント明示的追加
+    setupTouchEvents();
+    
     // Google Maps APIが読み込まれている場合は初期化
     if (typeof google !== 'undefined' && google.maps) {
+        debugLog('Google Maps API 利用可能');
         initMap();
+    } else {
+        debugLog('Google Maps API 利用不可');
     }
 });
 
 // 言語切り替え機能の設定
 function setupLanguageToggle() {
     document.querySelectorAll('.lang-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const isEnglish = this.textContent === 'English';
-            
-            document.querySelectorAll('.lang-btn').forEach(btn => {
-                btn.classList.remove('active');
+        ['click', 'touchend'].forEach(eventType => {
+            button.addEventListener(eventType, function(e) {
+                if (eventType === 'touchend') {
+                    e.preventDefault();
+                }
+                
+                debugLog(`言語ボタン: ${eventType} - ${this.textContent}`);
+                const isEnglish = this.textContent === 'English';
+                
+                document.querySelectorAll('.lang-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                this.classList.add('active');
+                
+                switchLanguage(isEnglish ? 'en' : 'ja');
             });
-            this.classList.add('active');
-            
-            switchLanguage(isEnglish ? 'en' : 'ja');
         });
+    });
+}
+
+// モバイル対応のためのタッチイベント追加
+function setupTouchEvents() {
+    // タッチイベントのテスト
+    document.addEventListener('touchstart', function() {
+        debugLog('タッチイベント検出');
+    }, { passive: true });
+    
+    // すべてのボタンにタップフィードバックを追加
+    document.querySelectorAll('button').forEach(button => {
+        button.addEventListener('touchstart', function() {
+            this.style.opacity = '0.7';
+        }, { passive: true });
+        
+        button.addEventListener('touchend', function() {
+            this.style.opacity = '1';
+        }, { passive: true });
+    });
+}
+
+// ネットワーク状態の監視
+function setupNetworkMonitoring() {
+    window.addEventListener('online', function() {
+        debugLog('オンラインになりました');
+    });
+    
+    window.addEventListener('offline', function() {
+        debugLog('オフラインになりました');
+        displayMessage(
+            currentLanguage === 'ja' 
+                ? languages[currentLanguage].networkErrorMessage 
+                : languages[currentLanguage].networkErrorMessage,
+            true
+        );
     });
 }
 
 // 言語切り替え処理
 function switchLanguage(lang) {
     currentLanguage = lang;
+    debugLog(`言語切替: ${lang}`);
     
     // テキスト要素の更新
     document.querySelector('.text-input').placeholder = languages[lang].placeholder;
-    document.querySelector('.input-btn:last-child').textContent = languages[lang].sendButton;
+    document.querySelector('.send-btn').textContent = languages[lang].sendButton;
     document.querySelector('h1').textContent = languages[lang].headerTitle;
     document.querySelector('.logo').innerHTML = languages[lang].logoText;
     
@@ -123,17 +202,33 @@ function switchLanguage(lang) {
 // クイック質問ボタンの設定
 function setupQuickQuestions() {
     document.querySelectorAll('.question-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const question = this.textContent;
-            sendUserMessage(question);
+        ['click', 'touchend'].forEach(eventType => {
+            button.addEventListener(eventType, function(e) {
+                if (eventType === 'touchend') {
+                    e.preventDefault();
+                }
+                
+                debugLog(`質問ボタン: ${eventType} - ${this.textContent}`);
+                const question = this.textContent;
+                sendUserMessage(question);
+            }, { passive: false });
         });
     });
 }
 
 // 送信ボタンの設定
 function setupSendButton() {
-    document.querySelector('.input-btn:last-child').addEventListener('click', function() {
-        sendCurrentInputMessage();
+    const sendButton = document.querySelector('.send-btn');
+    
+    ['click', 'touchend'].forEach(eventType => {
+        sendButton.addEventListener(eventType, function(e) {
+            if (eventType === 'touchend') {
+                e.preventDefault();
+            }
+            
+            debugLog(`送信ボタン: ${eventType}`);
+            sendCurrentInputMessage();
+        }, { passive: false });
     });
 }
 
@@ -142,6 +237,8 @@ function setupInputField() {
     const inputField = document.querySelector('.text-input');
     inputField.addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
+            debugLog('Enterキー押下');
+            e.preventDefault();
             sendCurrentInputMessage();
         }
     });
@@ -153,6 +250,7 @@ function setupVoiceInput() {
     
     // SpeechRecognition APIのサポートチェック
     if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+        debugLog('音声認識API 利用可能');
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
         
@@ -162,35 +260,49 @@ function setupVoiceInput() {
         
         recognition.onresult = function(event) {
             const transcript = event.results[0][0].transcript;
+            debugLog(`音声認識結果: ${transcript}`);
             document.querySelector('.text-input').value = transcript;
             // 音声認識結果を自動送信
             setTimeout(() => sendCurrentInputMessage(), 500);
         };
         
         recognition.onerror = function(event) {
-            console.error('Speech recognition error', event.error);
+            debugLog(`音声認識エラー: ${event.error}`);
             voiceBtn.classList.remove('active');
         };
         
         recognition.onend = function() {
+            debugLog('音声認識終了');
             voiceBtn.classList.remove('active');
         };
         
-        voiceBtn.addEventListener('click', function() {
-            // 言語の更新（言語が切り替えられた場合に対応）
-            recognition.lang = currentLanguage === 'ja' ? 'ja-JP' : 'en-US';
-            recognition.start();
-            voiceBtn.classList.add('active');
-            
-            // 10秒後に自動停止（タイムアウト対策）
-            setTimeout(() => {
-                if (voiceBtn.classList.contains('active')) {
-                    recognition.stop();
+        ['click', 'touchend'].forEach(eventType => {
+            voiceBtn.addEventListener(eventType, function(e) {
+                if (eventType === 'touchend') {
+                    e.preventDefault();
                 }
-            }, 10000);
+                
+                debugLog(`音声ボタン: ${eventType}`);
+                // 言語の更新（言語が切り替えられた場合に対応）
+                recognition.lang = currentLanguage === 'ja' ? 'ja-JP' : 'en-US';
+                try {
+                    recognition.start();
+                    voiceBtn.classList.add('active');
+                    
+                    // 10秒後に自動停止（タイムアウト対策）
+                    setTimeout(() => {
+                        if (voiceBtn.classList.contains('active')) {
+                            recognition.stop();
+                        }
+                    }, 10000);
+                } catch (error) {
+                    debugLog(`音声認識開始エラー: ${error.message}`);
+                }
+            }, { passive: false });
         });
     } else {
         // 音声認識非対応の場合はボタンを非表示
+        debugLog('音声認識API 利用不可');
         voiceBtn.style.display = 'none';
     }
 }
@@ -205,13 +317,14 @@ function setupAutoReset() {
     function detectActivity() {
         clearTimeout(userActivityTimeout);
         userActivityTimeout = setTimeout(() => {
+            debugLog('自動リセット実行');
             startNewConversation();
         }, resetTimeInMinutes * 60 * 1000);
     }
     
     // 様々なユーザーイベントを監視
     ['click', 'touchstart', 'keypress'].forEach(eventType => {
-        document.addEventListener(eventType, detectActivity);
+        document.addEventListener(eventType, detectActivity, { passive: true });
     });
     
     // 初期タイマーセット
@@ -224,8 +337,11 @@ function sendCurrentInputMessage() {
     const message = input.value.trim();
     
     if (message) {
+        debugLog(`メッセージ送信: ${message}`);
         sendUserMessage(message);
         input.value = '';
+        // スマホでキーボードを閉じる
+        input.blur();
     }
 }
 
@@ -240,24 +356,71 @@ function sendUserMessage(message) {
 
 // APIにメッセージを送信
 async function sendToAPI(message) {
+    debugLog(`API送信開始: "${message}"`);
     // ローディングインジケーターを表示
     displayLoadingIndicator();
     
+    // フォールバックモードの場合
+    if (USE_FALLBACK) {
+        setTimeout(() => {
+            debugLog('フォールバックモードで応答生成');
+            removeLoadingIndicator();
+            
+            // メッセージから応答を生成
+            let response = 'すみません、現在デモモードで動作しています。';
+            
+            // キーワードによる簡易レスポンス
+            const lowerMessage = message.toLowerCase();
+            if (lowerMessage.includes('jaxa') || lowerMessage.includes('宇宙')) {
+                response = 'JAXAつくば宇宙センターは、日本の宇宙開発の中心となる研究施設です。実物大のロケットモデルや国際宇宙ステーション「きぼう」の実物大モデルを見学できます。営業時間は10:00～17:00で、入場は無料です。';
+                updateInfoPanel('JAXA');
+                updateMapForLocation('JAXA');
+            } else if (lowerMessage.includes('交通') || lowerMessage.includes('バス')) {
+                response = 'つくば市内の主な交通手段はつくばエクスプレス（TX）やバスです。つくばセンターから市内各所へバスが運行しています。また、レンタサイクルも利用可能です。';
+                updateInfoPanel('交通');
+                updateMapForLocation('交通');
+            } else if (lowerMessage.includes('グルメ') || lowerMessage.includes('食事') || lowerMessage.includes('レストラン')) {
+                response = 'つくば市内には様々な飲食店があります。つくばセンター周辺にはショッピングモール内のフードコートやレストラン街があります。学園都市ならではの国際色豊かな料理も楽しめます。';
+                updateInfoPanel('グルメ');
+                updateMapForLocation('グルメ');
+            } else if (lowerMessage.includes('イベント')) {
+                response = 'つくば市では年間を通じて様々なイベントが開催されます。5月の「つくばフェスティバル」、8月の「まつりつくば」などが人気です。また、研究機関の一般公開イベントも見どころです。';
+                updateInfoPanel('イベント');
+                updateMapForLocation('イベント');
+            }
+            
+            displayMessage(response, true);
+        }, 1500);
+        
+        return;
+    }
+    
+    // 通常のAPI呼び出し処理
     try {
+        debugLog('APIリクエスト準備中...');
+        // タイムアウト設定
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒タイムアウト
+        
         const response = await fetch(CONVERSATION_API, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DIFY_API_KEY}`
+                'Authorization': `Bearer ${DIFY_API_KEY}`,
+                'X-Requested-With': 'XMLHttpRequest' // CORSヘッダー追加
             },
             body: JSON.stringify({
                 inputs: {},
                 query: message,
-                user: 'tourist-kiosk',
+                user: 'tourist-kiosk-' + (navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop'),
                 response_mode: 'blocking', // または 'streaming'
                 conversation_id: currentConversationId
-            })
+            }),
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId); // タイムアウトをクリア
+        debugLog(`APIレスポンス: status=${response.status}`);
         
         // ローディングインジケーターを削除
         removeLoadingIndicator();
@@ -267,10 +430,12 @@ async function sendToAPI(message) {
         }
         
         const data = await response.json();
+        debugLog('データ受信完了');
         
         // 会話IDを保存（初回の場合）
         if (!currentConversationId && data.conversation_id) {
             currentConversationId = data.conversation_id;
+            debugLog(`会話ID設定: ${currentConversationId}`);
         }
         
         // APIからの応答を表示
@@ -280,11 +445,21 @@ async function sendToAPI(message) {
         updateInfoPanelFromAPIResponse(data.answer);
         
     } catch (error) {
+        debugLog(`エラー発生: ${error.message}`);
         console.error('Error:', error);
         removeLoadingIndicator();
         
+        // より詳細なエラーメッセージ
+        let errorMessage = languages[currentLanguage].errorMessage;
+        
+        if (error.name === 'AbortError') {
+            errorMessage = languages[currentLanguage].timeoutMessage;
+        } else if (error.message.includes('NetworkError') || error.message.includes('network')) {
+            errorMessage = languages[currentLanguage].networkErrorMessage;
+        }
+        
         // エラーメッセージを表示
-        displayMessage(languages[currentLanguage].errorMessage, true);
+        displayMessage(errorMessage, true);
     }
 }
 
@@ -363,46 +538,67 @@ function resetInfoPanel() {
 
 // 地図の初期化
 function initMap() {
-    // つくば市センターの座標
-    const tsukubaCenter = { lat: 36.0834, lng: 140.1121 };
-    
-    // 地図コンテナ要素の取得
-    const mapElement = document.querySelector('.map-container');
-    
-    // テキストコンテンツをクリア
-    mapElement.textContent = '';
-    
-    // 地図の初期化
-    map = new google.maps.Map(mapElement, {
-        center: tsukubaCenter,
-        zoom: 13,
-        mapTypeControl: false,
-        streetViewControl: false,
-        fullscreenControl: false,
-        zoomControl: true
-    });
-    
-    // デフォルトのマーカー
-    addMarker(tsukubaCenter, 'つくばセンター');
+    try {
+        // つくば市センターの座標
+        const tsukubaCenter = { lat: 36.0834, lng: 140.1121 };
+        
+        // 地図コンテナ要素の取得
+        const mapElement = document.querySelector('.map-container');
+        
+        // テキストコンテンツをクリア
+        mapElement.textContent = '';
+        
+        // 地図の初期化
+        map = new google.maps.Map(mapElement, {
+            center: tsukubaCenter,
+            zoom: 13,
+            mapTypeControl: false,
+            streetViewControl: false,
+            fullscreenControl: false,
+            zoomControl: true,
+            gestureHandling: 'cooperative' // モバイルでの操作を最適化
+        });
+        
+        // デフォルトのマーカー
+        addMarker(tsukubaCenter, 'つくばセンター');
+        
+        debugLog('地図初期化完了');
+    } catch (error) {
+        debugLog(`地図初期化エラー: ${error.message}`);
+        // 地図読み込みエラー時のフォールバック
+        const mapElement = document.querySelector('.map-container');
+        mapElement.textContent = currentLanguage === 'ja' ? 
+            '地図を読み込めませんでした' : 
+            'Failed to load map';
+    }
 }
 
 // 地図マーカーの追加
 function addMarker(position, title) {
     if (!map) return;
     
-    const marker = new google.maps.Marker({
-        position: position,
-        map: map,
-        title: title
-    });
-    
-    markers.push(marker);
-    return marker;
+    try {
+        const marker = new google.maps.Marker({
+            position: position,
+            map: map,
+            title: title
+        });
+        
+        markers.push(marker);
+        return marker;
+    } catch (error) {
+        debugLog(`マーカー追加エラー: ${error.message}`);
+        return null;
+    }
 }
 
 // 全マーカーの削除
 function clearMarkers() {
-    markers.forEach(marker => marker.setMap(null));
+    markers.forEach(marker => {
+        if (marker && marker.setMap) {
+            marker.setMap(null);
+        }
+    });
     markers = [];
 }
 
@@ -410,18 +606,22 @@ function clearMarkers() {
 function resetMap() {
     if (!map) return;
     
-    // つくば市センターの座標
-    const tsukubaCenter = { lat: 36.0834, lng: 140.1121 };
-    
-    // 地図の中心とズームをリセット
-    map.setCenter(tsukubaCenter);
-    map.setZoom(13);
-    
-    // マーカーをクリア
-    clearMarkers();
-    
-    // デフォルトのマーカーを追加
-    addMarker(tsukubaCenter, 'つくばセンター');
+    try {
+        // つくば市センターの座標
+        const tsukubaCenter = { lat: 36.0834, lng: 140.1121 };
+        
+        // 地図の中心とズームをリセット
+        map.setCenter(tsukubaCenter);
+        map.setZoom(13);
+        
+        // マーカーをクリア
+        clearMarkers();
+        
+        // デフォルトのマーカーを追加
+        addMarker(tsukubaCenter, 'つくばセンター');
+    } catch (error) {
+        debugLog(`地図リセットエラー: ${error.message}`);
+    }
 }
 
 // APIレスポンスから情報パネルを更新
@@ -463,6 +663,8 @@ function updateInfoPanelFromAPIResponse(answer) {
 function updateMapForLocation(locationType) {
     if (!map) return;
     
+    debugLog(`地図更新: ${locationType}`);
+    
     // 場所ごとの座標情報
     const locations = {
         'JAXA': { 
@@ -492,22 +694,27 @@ function updateMapForLocation(locationType) {
         }
     };
     
-    const location = locations[locationType];
-    if (location && map) {
-        // 地図の中心とズームを更新
-        map.setCenter(location.center);
-        map.setZoom(location.zoom);
-        
-        // 既存のマーカーをクリア
-        clearMarkers();
-        
-        // 新しいマーカーを追加
-        addMarker(location.center, location.title);
+    try {
+        const location = locations[locationType];
+        if (location && map) {
+            // 地図の中心とズームを更新
+            map.setCenter(location.center);
+            map.setZoom(location.zoom);
+            
+            // 既存のマーカーをクリア
+            clearMarkers();
+            
+            // 新しいマーカーを追加
+            addMarker(location.center, location.title);
+        }
+    } catch (error) {
+        debugLog(`地図更新エラー: ${error.message}`);
     }
 }
 
 // 情報パネルの更新
 function updateInfoPanel(type) {
+    debugLog(`情報パネル更新: ${type}`);
     const infoList = document.querySelector('.info-list');
     const infoTitle = document.querySelector('.quick-info h3');
     
@@ -621,96 +828,9 @@ function generateUUID() {
         return v.toString(16);
     });
 }
-// DOMが読み込まれた後に実行
-document.addEventListener('DOMContentLoaded', function() {
-    // 既存のコード...
-    
-    // モバイル対応のためのタッチイベント明示的追加
-    document.querySelectorAll('.question-btn, .input-btn, .lang-btn').forEach(button => {
-        button.addEventListener('touchstart', function(e) {
-            e.preventDefault(); // デフォルトの動作を防止
-            this.click(); // クリックイベントを手動でトリガー
-        }, { passive: false });
-    });
-    
-    // モバイルでのデバッグ用：エラーメッセージを表示
-    window.onerror = function(message, source, lineno, colno, error) {
-        console.error('Error:', message, 'at', source, lineno, colno);
-        alert('Error: ' + message); // デバッグ用のアラート
-        return true;
-    };
-    
-    // ネットワークエラーの検出強化
-    window.addEventListener('online', function() {
-        console.log('オンラインになりました');
-    });
-    
-    window.addEventListener('offline', function() {
-        console.log('オフラインになりました');
-        displayMessage(
-            currentLanguage === 'ja' 
-                ? 'ネットワーク接続がありません。接続を確認してください。' 
-                : 'No network connection. Please check your connection.',
-            true
-        );
-    });
-    
-    // その他の既存のコード...
-});
 
-// APIにメッセージを送信（エラー処理強化）
-async function sendToAPI(message) {
-    // ローディングインジケーターを表示
-    displayLoadingIndicator();
-    
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒タイムアウト
-        
-        const response = await fetch(CONVERSATION_API, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DIFY_API_KEY}`,
-                'X-Requested-With': 'XMLHttpRequest' // CORSヘッダー追加
-            },
-            body: JSON.stringify({
-                inputs: {},
-                query: message,
-                user: 'tourist-kiosk-' + (navigator.userAgent.includes('Mobile') ? 'mobile' : 'desktop'),
-                response_mode: 'blocking',
-                conversation_id: currentConversationId
-            }),
-            signal: controller.signal // AbortControllerのシグナルを設定
-        });
-        
-        clearTimeout(timeoutId); // タイムアウトをクリア
-        
-        // 以下既存のコード...
-        
-    } catch (error) {
-        console.error('Error details:', error);
-        removeLoadingIndicator();
-        
-        let errorMessage = languages[currentLanguage].errorMessage;
-        
-        // より詳細なエラーメッセージ
-        if (error.name === 'AbortError') {
-            errorMessage = currentLanguage === 'ja' 
-                ? 'リクエストがタイムアウトしました。ネットワーク接続を確認してください。' 
-                : 'Request timed out. Please check your network connection.';
-        } else if (error.message.includes('NetworkError')) {
-            errorMessage = currentLanguage === 'ja' 
-                ? 'ネットワークエラーが発生しました。接続を確認してください。' 
-                : 'A network error occurred. Please check your connection.';
-        }
-        
-        // エラーメッセージを表示
-        displayMessage(errorMessage, true);
-        
-        // デバッグ情報をコンソールに記録
-        console.log('User agent:', navigator.userAgent);
-        console.log('Platform:', navigator.platform);
-        console.log('Connection type:', navigator.connection ? navigator.connection.effectiveType : 'unknown');
-    }
-}
+// グローバルエラーハンドリング
+window.onerror = function(message, source, lineno, colno, error) {
+    debugLog(`グローバルエラー: ${message} at ${source}:${lineno}:${colno}`);
+    return true; // エラーが処理されたことを示す
+};
