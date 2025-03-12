@@ -1,6 +1,6 @@
 // デバッグ機能
-const DEBUG_MODE = false; // デバッグモードのオン/オフ
-const USE_FALLBACK = false; // APIが失敗した場合のフォールバックモード
+const USE_FALLBACK = true; // APIが失敗した場合のフォールバックモードを常に有効に
+const DEBUG_MODE = true; // デバッグ情報を確認するため有効に
 
 // デバッグログ
 function debugLog(message) {
