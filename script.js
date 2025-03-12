@@ -1,5 +1,5 @@
 // デバッグ機能
-const DEBUG_MODE = true; // デバッグモードのオン/オフ
+const DEBUG_MODE = false; // デバッグモードのオン/オフ
 const USE_FALLBACK = false; // APIが失敗した場合のフォールバックモード
 
 // デバッグログ
