@@ -400,11 +400,16 @@ function sendUserMessage(message) {
 // APIにメッセージを送信
 async function sendToAPI(message) {
     debugLog(`API送信開始: "${message}"`);
+    
+    // モバイルデバイスの場合は常にフォールバックモードを使用
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const useLocalFallback = USE_FALLBACK || isMobile;
+    
     // ローディングインジケーターを表示
     displayLoadingIndicator();
     
     // フォールバックモードの場合
-    if (USE_FALLBACK) {
+    if (useLocalFallback) {
         setTimeout(() => {
             debugLog('フォールバックモードで応答生成');
             removeLoadingIndicator();
@@ -430,10 +435,14 @@ async function sendToAPI(message) {
                 response = 'つくば市では年間を通じて様々なイベントが開催されます。5月の「つくばフェスティバル」、8月の「まつりつくば」などが人気です。また、研究機関の一般公開イベントも見どころです。';
                 updateInfoPanel('イベント');
                 updateMapForLocation('イベント');
+            } else if (lowerMessage.includes('観光') || lowerMessage.includes('スポット')) {
+                response = 'つくば市の主な観光スポットは、JAXAつくば宇宙センター、つくばエキスポセンター、国立科学博物館筑波実験植物園などがあります。科学技術都市ならではの施設が多いのが特徴です。';
+                updateInfoPanel('エキスポ');
+                updateMapForLocation('エキスポ');
             }
             
             displayMessage(response, true);
-        }, 1500);
+        }, 1000);
         
         return;
     }
