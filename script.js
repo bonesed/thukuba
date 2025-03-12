@@ -216,18 +216,61 @@ function setupQuickQuestions() {
     });
 }
 
-// 送信ボタンの設定
+// 送信ボタンの設定を完全に書き換え
 function setupSendButton() {
     const sendButton = document.querySelector('.send-btn');
     
-    ['click', 'touchend'].forEach(eventType => {
-        sendButton.addEventListener(eventType, function(e) {
-            if (eventType === 'touchend') {
-                e.preventDefault();
-            }
-            
-            debugLog(`送信ボタン: ${eventType}`);
+    if (sendButton) {
+        // クリックイベントの追加
+        sendButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            debugLog('送信ボタンクリック');
             sendCurrentInputMessage();
+        });
+        
+        // タッチイベントの明示的追加
+        sendButton.addEventListener('touchstart', function(e) {
+            debugLog('送信ボタンタッチ開始');
+            this.style.opacity = '0.7';
+        }, { passive: true });
+        
+        sendButton.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            debugLog('送信ボタンタッチ終了');
+            this.style.opacity = '1';
+            sendCurrentInputMessage();
+        }, { passive: false });
+    } else {
+        debugLog('送信ボタンが見つかりません');
+    }
+}
+
+// クイック質問ボタンの設定を書き換え
+function setupQuickQuestions() {
+    const buttons = document.querySelectorAll('.question-btn');
+    debugLog(`質問ボタン数: ${buttons.length}`);
+    
+    buttons.forEach((button, index) => {
+        // クリックイベント
+        button.addEventListener('click', function(e) {
+            debugLog(`質問ボタン${index}クリック: ${this.textContent}`);
+            e.preventDefault();
+            const question = this.textContent;
+            sendUserMessage(question);
+        });
+        
+        // タッチイベント
+        button.addEventListener('touchstart', function(e) {
+            debugLog(`質問ボタン${index}タッチ開始: ${this.textContent}`);
+            this.style.opacity = '0.7';
+        }, { passive: true });
+        
+        button.addEventListener('touchend', function(e) {
+            e.preventDefault();
+            debugLog(`質問ボタン${index}タッチ終了: ${this.textContent}`);
+            this.style.opacity = '1';
+            const question = this.textContent;
+            sendUserMessage(question);
         }, { passive: false });
     });
 }
