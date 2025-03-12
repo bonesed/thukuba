@@ -2,15 +2,14 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>つくば市観光案内チャットボット</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <header>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-　　　　　<meta name="apple-mobile-web-app-capable" content="yes">
-　　　　　<meta name="mobile-web-app-capable" content="yes">
         <div class="header-title">
             <div class="logo">つくば<br>観光</div>
             <h1>つくば市観光案内チャットボット</h1>
@@ -55,10 +54,15 @@
             <input type="text" class="text-input" placeholder="質問を入力してください...">
             <div class="input-buttons">
                 <button class="input-btn voice-btn">🎤</button>
-                <button class="input-btn">送信</button>
+                <button class="input-btn send-btn">送信</button>
             </div>
         </div>
     </main>
+
+    <!-- デバッグ情報表示エリア -->
+    <div id="debug-info" style="position: fixed; bottom: 0; left: 0; right: 0; background: rgba(0,0,0,0.7); color: white; padding: 10px; font-size: 12px; max-height: 100px; overflow-y: auto; display: none;">
+        <div id="debug-content"></div>
+    </div>
 
     <!-- Google Maps APIの読み込み（APIキーを取得して置き換えてください） -->
     <script src="https://maps.googleapis.com/maps/api/js?key=あなたのGoogleMapsAPIキー&callback=initMap" async defer></script>
