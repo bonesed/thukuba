@@ -13,15 +13,21 @@
     margin: 0;
     padding: 0;
     font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+    -webkit-tap-highlight-color: transparent; /* タップ時のハイライトを無効化 */
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
 }
 
 body {
     background: url('https://via.placeholder.com/1920x1080?text=つくば市風景') center center/cover no-repeat fixed;
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
     position: relative;
+    -webkit-text-size-adjust: 100%; /* iOS固有の問題修正 */
 }
 
 body::before {
@@ -85,6 +91,7 @@ h1 {
     font-size: 18px;
     font-weight: bold;
     transition: all 0.3s ease;
+    min-height: 44px; /* タップ可能な最小サイズ */
 }
 
 .lang-btn.active {
@@ -125,6 +132,7 @@ main {
     display: flex;
     flex-direction: column;
     gap: 15px;
+    -webkit-overflow-scrolling: touch; /* iOS用スクロール最適化 */
 }
 
 .message {
@@ -227,7 +235,7 @@ main {
     padding: 15px 20px;
     border: 2px solid #ddd;
     border-radius: var(--border-radius);
-    font-size: 18px;
+    font-size: 16px; /* モバイルでのフォームズーム防止 */
     transition: border-color 0.3s ease;
 }
 
@@ -254,6 +262,8 @@ main {
     align-items: center;
     justify-content: center;
     transition: background-color 0.3s ease;
+    min-height: 44px; /* タップ可能な最小サイズ */
+    min-width: 44px;
 }
 
 .input-btn:hover {
@@ -264,7 +274,7 @@ main {
     background-color: var(--accent-color);
 }
 
-.voice-btn:hover {
+.voice-btn:hover, .voice-btn:active {
     background-color: #ff8534;
 }
 
@@ -287,9 +297,10 @@ main {
     font-weight: bold;
     text-align: center;
     transition: all 0.3s ease;
+    min-height: 44px; /* タップ可能な最小サイズ */
 }
 
-.question-btn:hover {
+.question-btn:hover, .question-btn:active {
     background-color: var(--primary-color);
     color: white;
 }
@@ -373,6 +384,7 @@ main {
         flex-wrap: nowrap;
         overflow-x: auto;
         padding-bottom: 10px;
+        -webkit-overflow-scrolling: touch; /* iOS用スクロール最適化 */
     }
     
     .question-btn {
@@ -405,7 +417,8 @@ main {
         flex: 1;
     }
 }
-/* モバイル向け追加調整 */
+
+/* スマホ対応の追加スタイル */
 @media (max-width: 480px) {
     body {
         height: 100vh;
@@ -427,7 +440,6 @@ main {
     
     .text-input {
         padding: 12px 15px;
-        font-size: 16px; /* モバイルでのフォームズーム防止 */
     }
     
     .input-btn {
@@ -440,14 +452,16 @@ main {
         min-width: 140px;
     }
     
-    /* タップ領域の拡大 */
-    .lang-btn, .input-btn, .question-btn, .info-item {
-        cursor: pointer;
-        -webkit-tap-highlight-color: rgba(0,0,0,0); /* タップハイライト除去 */
-    }
-    
     /* 100vh問題対策 */
     .chat-container {
         max-height: 60vh;
+    }
+    
+    /* モバイルSafariのフォーム関連問題修正 */
+    input[type="text"], 
+    input[type="button"], 
+    input[type="submit"] {
+        -webkit-appearance: none;
+        border-radius: var(--border-radius);
     }
 }
